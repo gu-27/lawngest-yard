@@ -668,11 +668,12 @@
             <label>Service Address</label>
             <input type="text" name="address" placeholder="123 Main St, Spokane, WA 99201" required>
           </div>
+          <div class="form-group">
+            <label>Available Dates <span style="font-weight:400;font-size:.78rem;color:var(--muted);">— check all that work for you</span></label>
+            <div id="date-checkboxes" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;"></div>
+            <input type="hidden" name="available_dates" id="available_dates_hidden">
+          </div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Preferred Date</label>
-              <input type="date" name="preferred_date" required>
-            </div>
             <div class="form-group">
               <label>Lawn Size (approx)</label>
               <select name="lawn_size">
@@ -804,6 +805,88 @@
     &copy; 2026 The Lawngest Yard &nbsp;·&nbsp; Pacific Northwest &nbsp;·&nbsp; 💛 Down Syndrome Awareness
   </div>
 </footer>
+
+<script>
+// ── AERATION DATE CHECKBOXES ──
+(function() {
+  function getUpcomingWeekends(n) {
+    const dates = [];
+    const d = new Date();
+    const day = d.getDay();
+    const daysToSat = (6 - day + 7) % 7 || 7;
+    d.setDate(d.getDate() + daysToSat);
+    for (let i = 0; i < n; i++) {
+      dates.push(new Date(d));
+      d.setDate(d.getDate() + 7);
+    }
+    return dates;
+  }
+
+  const container = document.getElementById('date-checkboxes');
+  if (!container) return;
+
+  const dates = getUpcomingWeekends(6);
+  dates.forEach(d => {
+    const iso = d.toISOString().split('T')[0];
+    const label = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const id = 'date_' + iso;
+
+    const wrap = document.createElement('label');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.35rem .8rem;border:1.5px solid var(--border);border-radius:999px;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--muted);transition:all .15s;user-select:none;';
+    wrap.htmlFor = id;
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.id = id; cb.value = iso; cb.style.display = 'none';
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        wrap.style.background = 'var(--green)';
+        wrap.style.borderColor = 'var(--green)';
+        wrap.style.color = 'white';
+      } else {
+        wrap.style.background = '';
+        wrap.style.borderColor = 'var(--border)';
+        wrap.style.color = 'var(--muted)';
+      }
+      updateHidden();
+    });
+
+    wrap.appendChild(cb);
+    wrap.appendChild(document.createTextNode(label));
+    container.appendChild(wrap);
+  });
+
+  function updateHidden() {
+    const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+    const hidden = document.getElementById('available_dates_hidden');
+    if (hidden) hidden.value = checked.join(', ');
+  }
+
+  // Save booking to localStorage on form submit
+  const form = container.closest('form');
+  if (form) {
+    form.addEventListener('submit', function() {
+      const checked = [...container.querySelectorAll('input[type=checkbox]:checked')].map(c => c.value);
+      if (!checked.length) return;
+      const booking = {
+        id: 'BK' + Date.now(),
+        name: (form.querySelector('[name=name]') || {}).value || '',
+        email: (form.querySelector('[name=email]') || {}).value || '',
+        phone: (form.querySelector('[name=phone]') || {}).value || '',
+        address: (form.querySelector('[name=address]') || {}).value || '',
+        lawnSize: (form.querySelector('[name=lawn_size]') || {}).value || 'unknown',
+        dates: checked,
+        notes: (form.querySelector('[name=notes]') || {}).value || '',
+        status: 'pending',
+        created: new Date().toISOString().split('T')[0],
+        lat: 47.6588, lng: -117.4260 // default Spokane center until geocoded
+      };
+      const existing = JSON.parse(localStorage.getItem('aeration_bookings') || '[]');
+      existing.push(booking);
+      localStorage.setItem('aeration_bookings', JSON.stringify(existing));
+    });
+  }
+})();
+</script>
 
 </body>
 </html>
